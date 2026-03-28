@@ -30,14 +30,28 @@ def send_telegram_message(message):
 
 # -----------------------------
 def fetch_news(ticker):
-    from_date = time.strftime('%Y-%m-%d', time.localtime(time.time()-86400))
-    to_date = time.strftime('%Y-%m-%d')
+    now = int(time.time())
+
+    # 🔥 Look back only 30 minutes
+    from_time = now - (60 * 30)
+
+    from_date = time.strftime('%Y-%m-%d', time.gmtime(from_time))
+    to_date = time.strftime('%Y-%m-%d', time.gmtime(now))
 
     url = f"https://finnhub.io/api/v1/company-news?symbol={ticker}&from={from_date}&to={to_date}&token={FINNHUB_API_KEY}"
 
     try:
         r = requests.get(url)
-        return r.json() if r.status_code == 200 else []
+        data = r.json() if r.status_code == 200 else []
+
+        # 🔥 CRITICAL FILTER (this is what actually fixes duplicates)
+        filtered = [
+            article for article in data
+            if article.get("datetime", 0) >= from_time
+        ]
+
+        return filtered
+
     except:
         return []
 
