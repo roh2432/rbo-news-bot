@@ -7,9 +7,9 @@ from textblob import TextBlob
 # -----------------------------
 # CONFIG (FILLED VIA SECRETS)
 # -----------------------------
-TELEGRAM_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
-CHAT_ID = "YOUR_CHAT_ID"
-FINNHUB_API_KEY = "YOUR_FINNHUB_API_KEY"
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+CHAT_ID = os.getenv("CHAT_ID")
+FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")
 
 TICKERS = ["SPY", "QQQ", "IWM", "IJH", "TLT", "VXUS", "XLF", "TQQQ", "UPRO",
            "HIMS", "HOOD", "SBET", "PINS", "SOFI", "IREN"]
