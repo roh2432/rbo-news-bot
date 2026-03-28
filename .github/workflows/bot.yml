@@ -23,7 +23,7 @@ jobs:
 
       - name: Run bot
         env:
-          TELEGRAM_TOKEN = "8069359728:AAFTBVPn4vpX4pESSsb-91pcHrDckBlawdA"
-          CHAT_ID = "844349255"
-          FINNHUB_API_KEY = "d72s5fhr01qlfd9ocu2gd72s5fhr01qlfd9ocu30"
+          TELEGRAM_TOKEN : "8069359728:AAFTBVPn4vpX4pESSsb-91pcHrDckBlawdA"
+          CHAT_ID : "844349255"
+          FINNHUB_API_KEY : "d72s5fhr01qlfd9ocu2gd72s5fhr01qlfd9ocu30"
         run: python news_bot.py
