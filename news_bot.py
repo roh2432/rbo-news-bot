@@ -33,7 +33,7 @@ def fetch_news(ticker):
     now = int(time.time())
 
     # 🔥 Look back only 30 minutes
-    from_time = now - (60 * 30)
+    from_time = now - (60 * 120)
 
     from_date = time.strftime('%Y-%m-%d', time.gmtime(from_time))
     to_date = time.strftime('%Y-%m-%d', time.gmtime(now))
