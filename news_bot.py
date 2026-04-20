@@ -4,22 +4,50 @@ import time
 import os
 from textblob import TextBlob
 
+
 # -----------------------------
-# CONFIG (FILLED VIA SECRETS)
+# CONFIG (from GitHub Secrets)
 # -----------------------------
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")
 
-TICKERS = ["SPY", "QQQ", "IWM", "IJH", "TLT", "VXUS", "XLF", "TQQQ", "UPRO",
-           "HIMS", "HOOD", "SBET", "PINS", "SOFI", "IREN"]
+TICKERS = ["SPY", "SPYM", "VIX", "HIMS", "HOOD", "SBET", "PINS", "SOFI", "IREN"]
 
+# -----------------------------
+# TICKER-SPECIFIC KEYWORDS
+# -----------------------------
 KEYWORDS_INCLUDE = [
     "earnings","guidance","forecast","outlook","downgrade","upgrade","beats","miss",
-    "inflows","outflows","etf","rebalance","rebalancing","index","holdings","allocation","sector rotation",
-    "fed","interest rates","rate hike","rate cut","inflation","cpi","ppi","jobs report","unemployment","gdp",
+    "inflows","outflows","etf","rebalance","rebalancing","index","holdings","allocation",
     "merger","acquisition","buyout","deal","partnership",
-    "regulation","ban","tariff","sanctions","stimulus","crisis"
+    "regulation","ban","tariff","sanctions","stimulus"
+]
+
+# -----------------------------
+# MACRO / MARKET KEYWORDS
+# -----------------------------
+MACRO_KEYWORDS = [
+    # Fed / Economy
+    "federal reserve","fed","interest rate","rate cut","rate hike",
+    "inflation","cpi","ppi","jobs report","unemployment","gdp",
+    "treasury yield","bond yields","liquidity",
+
+    # Market moves
+    "stock market","markets plunge","markets rally",
+    "dow","s&p 500","nasdaq","spy","qqq",
+    "volatility","vix","selloff","rally",
+
+    # Crypto
+    "bitcoin","btc","ethereum","eth","crypto",
+    "crypto market","etf inflows","crypto regulation",
+
+    # Geopolitics
+    "war","iran","china","russia","ukraine",
+    "conflict","oil prices",
+
+    # Regulation
+    "sec","policy change","rule change","etf approval"
 ]
 
 # -----------------------------
@@ -32,7 +60,7 @@ def send_telegram_message(message):
 def fetch_news(ticker):
     now = int(time.time())
 
-    # 🔥 Look back only 30 minutes
+    # 🔥 45 MIN LOOKBACK (prevents missing news if GitHub delays)
     from_time = now - (60 * 120)
 
     from_date = time.strftime('%Y-%m-%d', time.gmtime(from_time))
@@ -44,7 +72,7 @@ def fetch_news(ticker):
         r = requests.get(url)
         data = r.json() if r.status_code == 200 else []
 
-        # 🔥 CRITICAL FILTER (this is what actually fixes duplicates)
+        # 🔥 CRITICAL FILTER (prevents duplicates)
         filtered = [
             article for article in data
             if article.get("datetime", 0) >= from_time
@@ -56,45 +84,43 @@ def fetch_news(ticker):
         return []
 
 # -----------------------------
-def load_sent():
-    if os.path.exists("sent.json"):
-        with open("sent.json","r") as f:
-            return set(json.load(f))
-    return set()
-
-def save_sent(sent):
-    with open("sent.json","w") as f:
-        json.dump(list(sent), f)
-
-# -----------------------------
-def filter_keywords(article):
-    text = (article.get("headline","") + " " + article.get("summary","")).lower()
-    return any(k in text for k in KEYWORDS_INCLUDE)
-
 def sentiment(text):
     p = TextBlob(text).sentiment.polarity
-    if p > 0.05: return "📈 BULLISH"
-    if p < -0.05: return "📉 BEARISH"
-    return "⚪️ NEUTRAL"
+    if p > 0.05:
+        return "📈 BULLISH"
+    elif p < -0.05:
+        return "📉 BEARISH"
+    else:
+        return "⚪️ NEUTRAL"
 
 # -----------------------------
-def format_msg(ticker, a):
-    head = a.get("headline","")
-    summ = a.get("summary","")[:300] + "..."
-    url = a.get("url","")
-    src = a.get("source","")
-    ts = time.strftime('%Y-%m-%d %H:%M UTC', time.gmtime(a.get("datetime",0)))
+def is_relevant(article):
+    text = (article.get("headline","") + " " + article.get("summary","")).lower()
+
+    ticker_match = any(k in text for k in KEYWORDS_INCLUDE)
+    macro_match = any(k in text for k in MACRO_KEYWORDS)
+
+    return ticker_match or macro_match
+
+# -----------------------------
+def format_message(ticker, article):
+    head = article.get("headline","")
+    summ = article.get("summary","")[:300] + "..."
+    url = article.get("url","")
+    src = article.get("source","")
+    ts = time.strftime('%Y-%m-%d %H:%M UTC', time.gmtime(article.get("datetime",0)))
+
+    text = (head + " " + summ).lower()
+
+    # Detect macro vs ticker
+    if any(k in text for k in MACRO_KEYWORDS):
+        header = "🌍 MACRO EVENT"
+    else:
+        header = f"📊 {ticker}"
 
     s = sentiment(head + summ)
 
-    if ticker in ["SPY","QQQ"]:
-        macro = f"🧠 {s} MARKET"
-    else:
-        macro = f"🧠 {s}"
-
-    return f"""📊 {ticker} | {s}
-
-{macro}
+    return f"""{header} | {s}
 
 📰 {head}
 
@@ -107,23 +133,20 @@ def format_msg(ticker, a):
 """
 
 # -----------------------------
-def run():
-    sent = load_sent()
+def run_bot():
+    print("Bot running...")
 
-    for t in TICKERS:
-        news = fetch_news(t)
+    for ticker in TICKERS:
+        news = fetch_news(ticker)
+        print(f"{ticker}: {len(news)} articles fetched")
 
-        for a in news:
-            aid = str(a.get("id"))
+        for article in news:
+            if is_relevant(article):
+                message = format_message(ticker, article)
+                send_telegram_message(message)
 
-            if aid not in sent:
-                if filter_keywords(a):
-                    send_telegram_message(format_msg(t, a))
-
-                sent.add(aid)
-
-    save_sent(sent)
+    print("Run complete.")
 
 # -----------------------------
 if __name__ == "__main__":
-    run()
+    run_bot()
