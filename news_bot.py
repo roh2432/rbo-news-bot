@@ -284,20 +284,20 @@ def run_bot():
     minute = now.minute
 
     # ==========================================
-    # 🌅 PREMARKET REPORT
-    # 9:00 AM EST = 13:00 UTC
-    # ==========================================
-    if hour == 13 and minute < 5:
+# 🌅 PREMARKET REPORT
+# Sends between 9:00–9:29 AM EST
+# ==========================================
+if hour == 13 and minute < 30:
 
-        send_market_report("PREMARKET")
+    send_market_report("PREMARKET")
 
-    # ==========================================
-    # 🌙 AFTER CLOSE REPORT
-    # 4:15 PM EST = 20:15 UTC
-    # ==========================================
-    elif hour == 20 and 15 <= minute < 20:
+# ==========================================
+# 🌙 AFTER CLOSE REPORT
+# Sends between 4:15–4:44 PM EST
+# ==========================================
+elif hour == 20 and 15 <= minute < 45:
 
-        send_market_report("AFTER CLOSE")
+    send_market_report("AFTER CLOSE")
 
     # ==========================================
     # 📰 NEWS SCANNING
