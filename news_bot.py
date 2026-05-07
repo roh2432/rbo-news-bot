@@ -2,6 +2,7 @@ import requests
 import time
 import os
 from textblob import TextBlob
+from datetime import datetime
 
 # -----------------------------
 # CONFIG (GitHub Secrets)
@@ -11,9 +12,15 @@ CHAT_ID = os.getenv("CHAT_ID")
 FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")
 
 TICKERS = [
-    "SPY", "SPYM", "VIX",
-    "HIMS", "HOOD", "SBET",
-    "SOFI", "IREN"
+    "SPY",
+    "SPYM",
+    "VIX",
+    "HIMS",
+    "HOOD",
+    "SBET",
+    "PINS",
+    "SOFI",
+    "IREN"
 ]
 
 # -----------------------------
@@ -35,7 +42,6 @@ KEYWORDS_INCLUDE = [
 # MACRO / MARKET KEYWORDS
 # -----------------------------
 MACRO_KEYWORDS = [
-    # Fed / Economy
     "federal reserve", "fed",
     "interest rate", "rate cut", "rate hike",
     "inflation", "cpi", "ppi",
@@ -43,7 +49,6 @@ MACRO_KEYWORDS = [
     "treasury yield", "bond yields",
     "liquidity",
 
-    # Market moves
     "stock market", "markets plunge",
     "markets rally", "dow",
     "s&p 500", "nasdaq",
@@ -51,19 +56,16 @@ MACRO_KEYWORDS = [
     "volatility", "vix",
     "selloff", "rally",
 
-    # Crypto
     "bitcoin", "btc",
     "ethereum", "eth",
     "crypto", "crypto market",
     "etf inflows", "crypto regulation",
 
-    # Geopolitics
     "war", "iran",
     "china", "russia",
     "ukraine", "conflict",
     "oil prices",
 
-    # Regulation
     "sec", "policy change",
     "rule change", "etf approval"
 ]
@@ -72,6 +74,7 @@ MACRO_KEYWORDS = [
 # TELEGRAM
 # -----------------------------
 def send_telegram_message(message):
+
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
 
     payload = {
@@ -88,7 +91,7 @@ def fetch_news(ticker):
 
     now = int(time.time())
 
-    # 🔥 60 MIN LOOKBACK
+    # 🔥 60 minute lookback
     from_time = now - (60 * 60)
 
     from_date = time.strftime(
@@ -110,11 +113,12 @@ def fetch_news(ticker):
     )
 
     try:
+
         r = requests.get(url)
 
         data = r.json() if r.status_code == 200 else []
 
-        # 🔥 CRITICAL DUPLICATE FILTER
+        # 🔥 Prevent duplicates
         filtered = [
             article for article in data
             if article.get("datetime", 0) >= from_time
@@ -124,6 +128,68 @@ def fetch_news(ticker):
 
     except:
         return []
+
+# -----------------------------
+# FETCH PRICE
+# -----------------------------
+def fetch_price(ticker):
+
+    url = (
+        f"https://finnhub.io/api/v1/quote"
+        f"?symbol={ticker}"
+        f"&token={FINNHUB_API_KEY}"
+    )
+
+    try:
+
+        r = requests.get(url)
+
+        data = r.json()
+
+        return {
+            "current": data.get("c"),
+            "previous_close": data.get("pc")
+        }
+
+    except:
+        return None
+
+# -----------------------------
+# MARKET REPORT
+# -----------------------------
+def send_market_report(report_type):
+
+    message = f"📊 {report_type} MARKET REPORT\n\n"
+
+    for ticker in TICKERS:
+
+        price_data = fetch_price(ticker)
+
+        if price_data:
+
+            current = price_data["current"]
+            previous = price_data["previous_close"]
+
+            if current and previous:
+
+                change_pct = (
+                    ((current - previous) / previous) * 100
+                )
+
+                if change_pct > 0:
+                    emoji = "📈"
+                elif change_pct < 0:
+                    emoji = "📉"
+                else:
+                    emoji = "⚪️"
+
+                message += (
+                    f"{emoji} {ticker}\n"
+                    f"Price: ${current:.2f}\n"
+                    f"Change: {change_pct:.2f}%\n\n"
+                )
+
+    send_telegram_message(message)
 
 # -----------------------------
 # SENTIMENT
@@ -212,6 +278,30 @@ def run_bot():
 
     print("Bot running...")
 
+    now = datetime.utcnow()
+
+    hour = now.hour
+    minute = now.minute
+
+    # ==========================================
+    # 🌅 PREMARKET REPORT
+    # 9:00 AM EST = 13:00 UTC
+    # ==========================================
+    if hour == 13 and minute < 5:
+
+        send_market_report("PREMARKET")
+
+    # ==========================================
+    # 🌙 AFTER CLOSE REPORT
+    # 4:15 PM EST = 20:15 UTC
+    # ==========================================
+    elif hour == 20 and 15 <= minute < 20:
+
+        send_market_report("AFTER CLOSE")
+
+    # ==========================================
+    # 📰 NEWS SCANNING
+    # ==========================================
     for ticker in TICKERS:
 
         news = fetch_news(ticker)
