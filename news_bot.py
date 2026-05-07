@@ -14,11 +14,10 @@ FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")
 TICKERS = [
     "SPY",
     "SPYM",
-    "VIX",
+    "^VIX",
     "HIMS",
     "HOOD",
     "SBET",
-    "PINS",
     "SOFI",
     "IREN"
 ]
