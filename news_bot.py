@@ -285,20 +285,20 @@ def run_bot():
     minute = now.minute
 
     # ==========================================
-# 🌅 PREMARKET REPORT
-# Runs anytime between:
-# 9:00 AM EST → 10:59 AM EST
-# ==========================================
-if hour == 13 or hour == 14:
+    # 🌅 PREMARKET REPORT
+    # Runs anytime between:
+    # 9:00 AM EST → 10:59 AM EST
+    # ==========================================
+    if hour == 13 or hour == 14:
 
     send_market_report("PREMARKET")
 
-# ==========================================
-# 🌙 AFTER CLOSE REPORT
-# Runs anytime between:
-# 4:15 PM EST → 5:59 PM EST
-# ==========================================
-elif hour == 20 or hour == 21:
+    # ==========================================
+    # 🌙 AFTER CLOSE REPORT
+    # Runs anytime between:
+    # 4:15 PM EST → 5:59 PM EST
+    # ==========================================
+    elif hour == 20 or hour == 21:
 
     send_market_report("AFTER CLOSE")
 
