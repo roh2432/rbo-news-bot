@@ -20,7 +20,8 @@ TICKERS = [
     "HOOD",
     "SBET",
     "SOFI",
-    "IREN"
+    "IREN",
+    "USO"
 ]
 
 # -----------------------------
