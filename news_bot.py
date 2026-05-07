@@ -14,6 +14,7 @@ FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")
 TICKERS = [
     "SPY",
     "SPYM",
+    "QQQ",
     "^VIX",
     "HIMS",
     "HOOD",
@@ -90,8 +91,8 @@ def fetch_news(ticker):
 
     now = int(time.time())
 
-    # 🔥 60 minute lookback
-    from_time = now - (60 * 60)
+    # 🔥 2:30 minute lookback
+    from_time = now - (60 * 150)
 
     from_date = time.strftime(
         '%Y-%m-%d',
@@ -284,17 +285,19 @@ def run_bot():
 
     # ==========================================
 # 🌅 PREMARKET REPORT
-# Sends between 9:00–9:29 AM EST
+# Runs anytime between:
+# 9:00 AM EST → 10:59 AM EST
 # ==========================================
-if hour == 13 and minute < 30:
+if hour == 13 or hour == 14:
 
     send_market_report("PREMARKET")
 
 # ==========================================
 # 🌙 AFTER CLOSE REPORT
-# Sends between 4:15–4:44 PM EST
+# Runs anytime between:
+# 4:15 PM EST → 5:59 PM EST
 # ==========================================
-elif hour == 20 and 15 <= minute < 45:
+elif hour == 20 or hour == 21:
 
     send_market_report("AFTER CLOSE")
 
