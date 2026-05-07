@@ -25,7 +25,7 @@ TICKERS = [
 ]
 
 # -----------------------------
-# TICKER NEWS KEYWORDS
+# KEYWORDS
 # -----------------------------
 KEYWORDS_INCLUDE = [
     "earnings", "guidance", "forecast", "outlook",
@@ -39,9 +39,6 @@ KEYWORDS_INCLUDE = [
     "tariff", "sanctions", "stimulus"
 ]
 
-# -----------------------------
-# MACRO / MARKET KEYWORDS
-# -----------------------------
 MACRO_KEYWORDS = [
     "federal reserve", "fed",
     "interest rate", "rate cut", "rate hike",
@@ -49,24 +46,20 @@ MACRO_KEYWORDS = [
     "jobs report", "unemployment", "gdp",
     "treasury yield", "bond yields",
     "liquidity",
-
     "stock market", "markets plunge",
     "markets rally", "dow",
     "s&p 500", "nasdaq",
     "spy", "qqq",
     "volatility", "vix",
     "selloff", "rally",
-
     "bitcoin", "btc",
     "ethereum", "eth",
     "crypto", "crypto market",
     "etf inflows", "crypto regulation",
-
     "war", "iran",
     "china", "russia",
     "ukraine", "conflict",
     "oil prices",
-
     "sec", "policy change",
     "rule change", "etf approval"
 ]
@@ -91,19 +84,10 @@ def send_telegram_message(message):
 def fetch_news(ticker):
 
     now = int(time.time())
-
-    # 🔥 2:30 minute lookback
     from_time = now - (60 * 150)
 
-    from_date = time.strftime(
-        '%Y-%m-%d',
-        time.gmtime(from_time)
-    )
-
-    to_date = time.strftime(
-        '%Y-%m-%d',
-        time.gmtime(now)
-    )
+    from_date = time.strftime('%Y-%m-%d', time.gmtime(from_time))
+    to_date = time.strftime('%Y-%m-%d', time.gmtime(now))
 
     url = (
         f"https://finnhub.io/api/v1/company-news"
@@ -114,12 +98,9 @@ def fetch_news(ticker):
     )
 
     try:
-
         r = requests.get(url)
-
         data = r.json() if r.status_code == 200 else []
 
-        # 🔥 Prevent duplicates
         filtered = [
             article for article in data
             if article.get("datetime", 0) >= from_time
@@ -142,9 +123,7 @@ def fetch_price(ticker):
     )
 
     try:
-
         r = requests.get(url)
-
         data = r.json()
 
         return {
@@ -173,9 +152,7 @@ def send_market_report(report_type):
 
             if current and previous:
 
-                change_pct = (
-                    ((current - previous) / previous) * 100
-                )
+                change_pct = ((current - previous) / previous) * 100
 
                 if change_pct > 0:
                     emoji = "📈"
@@ -201,33 +178,19 @@ def sentiment(text):
 
     if polarity > 0.05:
         return "📈 BULLISH"
-
     elif polarity < -0.05:
         return "📉 BEARISH"
-
     else:
         return "⚪️ NEUTRAL"
 
 # -----------------------------
-# RELEVANCE FILTER
+# FILTER
 # -----------------------------
 def is_relevant(article):
 
-    text = (
-        article.get("headline", "") +
-        " " +
-        article.get("summary", "")
-    ).lower()
+    text = (article.get("headline", "") + " " + article.get("summary", "")).lower()
 
-    ticker_match = any(
-        k in text for k in KEYWORDS_INCLUDE
-    )
-
-    macro_match = any(
-        k in text for k in MACRO_KEYWORDS
-    )
-
-    return ticker_match or macro_match
+    return any(k in text for k in KEYWORDS_INCLUDE) or any(k in text for k in MACRO_KEYWORDS)
 
 # -----------------------------
 # FORMAT MESSAGE
@@ -235,29 +198,15 @@ def is_relevant(article):
 def format_message(ticker, article):
 
     head = article.get("headline", "")
-
-    summ = (
-        article.get("summary", "")[:300]
-        + "..."
-    )
-
+    summ = (article.get("summary", "")[:300] + "...")
     url = article.get("url", "")
-
     src = article.get("source", "")
 
-    ts = time.strftime(
-        '%Y-%m-%d %H:%M UTC',
-        time.gmtime(article.get("datetime", 0))
-    )
+    ts = time.strftime('%Y-%m-%d %H:%M UTC', time.gmtime(article.get("datetime", 0)))
 
     text = (head + " " + summ).lower()
 
-    # 🌍 Macro vs ticker
-    if any(k in text for k in MACRO_KEYWORDS):
-        header = "🌍 MACRO EVENT"
-    else:
-        header = f"📊 {ticker}"
-
+    header = "🌍 MACRO EVENT" if any(k in text for k in MACRO_KEYWORDS) else f"📊 {ticker}"
     s = sentiment(head + summ)
 
     return f"""{header} | {s}
@@ -280,49 +229,32 @@ def run_bot():
     print("Bot running...")
 
     now = datetime.utcnow()
-
     hour = now.hour
-    minute = now.minute
 
-    # ==========================================
-    # 🌅 PREMARKET REPORT
-    # Runs anytime between:
-    # 9:00 AM EST → 10:59 AM EST
-    # ==========================================
+    # 🌅 PREMARKET (UTC 13–14)
     if hour == 13 or hour == 14:
 
-    send_market_report("PREMARKET")
+        send_market_report("PREMARKET")
+        return
 
-    # ==========================================
-    # 🌙 AFTER CLOSE REPORT
-    # Runs anytime between:
-    # 4:15 PM EST → 5:59 PM EST
-    # ==========================================
+    # 🌙 AFTER CLOSE (UTC 20–21)
     elif hour == 20 or hour == 21:
 
-    send_market_report("AFTER CLOSE")
+        send_market_report("AFTER CLOSE")
+        return
 
-    # ==========================================
-    # 📰 NEWS SCANNING
-    # ==========================================
+    # 📰 NEWS SCANNING (all other times)
     for ticker in TICKERS:
 
         news = fetch_news(ticker)
 
-        print(
-            f"{ticker}: "
-            f"{len(news)} articles fetched"
-        )
+        print(f"{ticker}: {len(news)} articles fetched")
 
         for article in news:
 
             if is_relevant(article):
 
-                message = format_message(
-                    ticker,
-                    article
-                )
-
+                message = format_message(ticker, article)
                 send_telegram_message(message)
 
     print("Run complete.")
