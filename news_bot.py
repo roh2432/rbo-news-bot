@@ -4,12 +4,17 @@ import os
 from textblob import TextBlob
 from datetime import datetime
 
-# -----------------------------
+# =========================================================
 # CONFIG (GitHub Secrets)
-# -----------------------------
+# =========================================================
+
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")
+
+# =========================================================
+# TICKERS
+# =========================================================
 
 TICKERS = [
     "SPY",
@@ -20,53 +25,133 @@ TICKERS = [
     "HOOD",
     "SBET",
     "SOFI",
-    "IREN",
-    "USO"
+    "XBI",
+    "XLK",
+    "XLE",
+    "XLF",
+    "XLY",
+    "XLI",
+    "XLV",
+    "XLP",
+    "USO",
 ]
 
-# -----------------------------
+# =========================================================
+# DEDUPLICATION
+# =========================================================
+
+SEEN_URLS = set()
+
+# =========================================================
 # KEYWORDS
-# -----------------------------
+# =========================================================
+
 KEYWORDS_INCLUDE = [
-    "earnings", "guidance", "forecast", "outlook",
-    "downgrade", "upgrade", "beats", "miss",
-    "inflows", "outflows", "etf",
-    "rebalance", "rebalancing",
-    "index", "holdings", "allocation",
-    "merger", "acquisition", "buyout",
-    "deal", "partnership",
-    "regulation", "ban",
-    "tariff", "sanctions", "stimulus"
+    "earnings",
+    "guidance",
+    "forecast",
+    "outlook",
+    "downgrade",
+    "upgrade",
+    "beats",
+    "miss",
+    "inflows",
+    "outflows",
+    "etf",
+    "rebalance",
+    "rebalancing",
+    "index",
+    "holdings",
+    "allocation",
+    "merger",
+    "acquisition",
+    "buyout",
+    "deal",
+    "partnership",
+    "regulation",
+    "ban",
+    "tariff",
+    "sanctions",
+    "stimulus",
 ]
 
 MACRO_KEYWORDS = [
-    "federal reserve", "fed",
-    "interest rate", "rate cut", "rate hike",
-    "inflation", "cpi", "ppi",
-    "jobs report", "unemployment", "gdp",
-    "treasury yield", "bond yields",
+    "federal reserve",
+    "fed",
+    "interest rate",
+    "rate cut",
+    "rate hike",
+    "inflation",
+    "cpi",
+    "ppi",
+    "jobs report",
+    "unemployment",
+    "gdp",
+    "treasury yield",
+    "bond yields",
     "liquidity",
-    "stock market", "markets plunge",
-    "markets rally", "dow",
-    "s&p 500", "nasdaq",
-    "spy", "qqq",
-    "volatility", "vix",
-    "selloff", "rally",
-    "bitcoin", "btc",
-    "ethereum", "eth",
-    "crypto", "crypto market",
-    "etf inflows", "crypto regulation",
-    "war", "iran",
-    "china", "russia",
-    "ukraine", "conflict",
+    "stock market",
+    "markets plunge",
+    "markets rally",
+    "dow",
+    "s&p 500",
+    "nasdaq",
+    "spy",
+    "qqq",
+    "volatility",
+    "vix",
+    "selloff",
+    "rally",
+    "bitcoin",
+    "btc",
+    "ethereum",
+    "eth",
+    "crypto",
+    "crypto market",
+    "etf inflows",
+    "crypto regulation",
+    "war",
+    "iran",
+    "china",
+    "russia",
+    "ukraine",
+    "conflict",
     "oil prices",
-    "sec", "policy change",
-    "rule change", "etf approval"
+    "sec",
+    "policy change",
+    "rule change",
+    "etf approval",
+    "lawsuit",
+    "settlement",
+    "court",
+    "judge",
+    "supreme court",
+    "trade talks",
+    "trade deal",
+    "negotiations",
+    "diplomacy",
+    "white house",
+    "treasury",
+    "commerce department",
+    "recession",
+    "consumer spending",
+    "retail sales",
+    "manufacturing",
+    "opec",
+    "middle east",
+    "israel",
+    "taiwan",
+    "shipping",
+    "supply chain",
+    "banking crisis",
+    "debt ceiling",
+    "government shutdown",
 ]
 
-# -----------------------------
+# =========================================================
 # TELEGRAM
-# -----------------------------
+# =========================================================
+
 def send_telegram_message(message):
 
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
@@ -76,12 +161,17 @@ def send_telegram_message(message):
         "text": message
     }
 
-    requests.post(url, data=payload)
+    try:
+        requests.post(url, data=payload, timeout=10)
 
-# -----------------------------
-# FETCH NEWS
-# -----------------------------
-def fetch_news(ticker):
+    except Exception as e:
+        print(f"Telegram error: {e}")
+
+# =========================================================
+# FETCH TICKER NEWS
+# =========================================================
+
+def fetch_company_news(ticker):
 
     now = int(time.time())
     from_time = now - (60 * 150)
@@ -98,8 +188,13 @@ def fetch_news(ticker):
     )
 
     try:
-        r = requests.get(url)
-        data = r.json() if r.status_code == 200 else []
+
+        r = requests.get(url, timeout=10)
+
+        if r.status_code != 200:
+            return []
+
+        data = r.json()
 
         filtered = [
             article for article in data
@@ -108,12 +203,51 @@ def fetch_news(ticker):
 
         return filtered
 
-    except:
+    except Exception as e:
+
+        print(f"Company news error ({ticker}): {e}")
         return []
 
-# -----------------------------
+# =========================================================
+# FETCH GENERAL MACRO NEWS
+# =========================================================
+
+def fetch_general_news():
+
+    url = (
+        f"https://finnhub.io/api/v1/news"
+        f"?category=general"
+        f"&token={FINNHUB_API_KEY}"
+    )
+
+    try:
+
+        r = requests.get(url, timeout=10)
+
+        if r.status_code != 200:
+            return []
+
+        data = r.json()
+
+        now = int(time.time())
+        from_time = now - (60 * 150)
+
+        filtered = [
+            article for article in data
+            if article.get("datetime", 0) >= from_time
+        ]
+
+        return filtered
+
+    except Exception as e:
+
+        print(f"General news error: {e}")
+        return []
+
+# =========================================================
 # FETCH PRICE
-# -----------------------------
+# =========================================================
+
 def fetch_price(ticker):
 
     url = (
@@ -123,7 +257,12 @@ def fetch_price(ticker):
     )
 
     try:
-        r = requests.get(url)
+
+        r = requests.get(url, timeout=10)
+
+        if r.status_code != 200:
+            return None
+
         data = r.json()
 
         return {
@@ -131,12 +270,15 @@ def fetch_price(ticker):
             "previous_close": data.get("pc")
         }
 
-    except:
+    except Exception as e:
+
+        print(f"Price fetch error ({ticker}): {e}")
         return None
 
-# -----------------------------
+# =========================================================
 # MARKET REPORT
-# -----------------------------
+# =========================================================
+
 def send_market_report(report_type):
 
     message = f"📊 {report_type} MARKET REPORT\n\n"
@@ -145,68 +287,115 @@ def send_market_report(report_type):
 
         price_data = fetch_price(ticker)
 
-        if price_data:
+        if not price_data:
+            continue
 
-            current = price_data["current"]
-            previous = price_data["previous_close"]
+        current = price_data["current"]
+        previous = price_data["previous_close"]
 
-            if current and previous:
+        if not current or not previous:
+            continue
 
-                change_pct = ((current - previous) / previous) * 100
+        change_pct = ((current - previous) / previous) * 100
 
-                if change_pct > 0:
-                    emoji = "📈"
-                elif change_pct < 0:
-                    emoji = "📉"
-                else:
-                    emoji = "⚪️"
+        if change_pct > 0:
+            emoji = "📈"
+        elif change_pct < 0:
+            emoji = "📉"
+        else:
+            emoji = "⚪️"
 
-                message += (
-                    f"{emoji} {ticker}\n"
-                    f"Price: ${current:.2f}\n"
-                    f"Change: {change_pct:.2f}%\n\n"
-                )
+        message += (
+            f"{emoji} {ticker}\n"
+            f"Price: ${current:.2f}\n"
+            f"Change: {change_pct:.2f}%\n\n"
+        )
 
     send_telegram_message(message)
 
-# -----------------------------
+# =========================================================
 # SENTIMENT
-# -----------------------------
+# =========================================================
+
 def sentiment(text):
 
     polarity = TextBlob(text).sentiment.polarity
 
     if polarity > 0.05:
         return "📈 BULLISH"
+
     elif polarity < -0.05:
         return "📉 BEARISH"
+
     else:
         return "⚪️ NEUTRAL"
 
-# -----------------------------
-# FILTER
-# -----------------------------
+# =========================================================
+# RELEVANCE FILTER
+# =========================================================
+
 def is_relevant(article):
 
-    text = (article.get("headline", "") + " " + article.get("summary", "")).lower()
+    text = (
+        article.get("headline", "") +
+        " " +
+        article.get("summary", "")
+    ).lower()
 
-    return any(k in text for k in KEYWORDS_INCLUDE) or any(k in text for k in MACRO_KEYWORDS)
+    return (
+        any(k in text for k in KEYWORDS_INCLUDE)
+        or
+        any(k in text for k in MACRO_KEYWORDS)
+    )
 
-# -----------------------------
+# =========================================================
+# DUPLICATE FILTER
+# =========================================================
+
+def already_seen(article):
+
+    url = article.get("url", "")
+
+    if not url:
+        return True
+
+    if url in SEEN_URLS:
+        return True
+
+    SEEN_URLS.add(url)
+
+    return False
+
+# =========================================================
 # FORMAT MESSAGE
-# -----------------------------
+# =========================================================
+
 def format_message(ticker, article):
 
     head = article.get("headline", "")
-    summ = (article.get("summary", "")[:300] + "...")
+
+    summary_raw = article.get("summary", "")
+
+    if len(summary_raw) > 300:
+        summ = summary_raw[:300] + "..."
+    else:
+        summ = summary_raw
+
     url = article.get("url", "")
     src = article.get("source", "")
 
-    ts = time.strftime('%Y-%m-%d %H:%M UTC', time.gmtime(article.get("datetime", 0)))
+    ts = time.strftime(
+        '%Y-%m-%d %H:%M UTC',
+        time.gmtime(article.get("datetime", 0))
+    )
 
     text = (head + " " + summ).lower()
 
-    header = "🌍 MACRO EVENT" if any(k in text for k in MACRO_KEYWORDS) else f"📊 {ticker}"
+    if any(k in text for k in MACRO_KEYWORDS):
+        header = "🌍 MACRO EVENT"
+    else:
+        header = f"📊 {ticker}"
+
     s = sentiment(head + summ)
 
     return f"""{header} | {s}
@@ -221,9 +410,36 @@ def format_message(ticker, article):
 🔗 {url}
 """
 
-# -----------------------------
+# =========================================================
+# PROCESS ARTICLES
+# =========================================================
+
+def process_articles(ticker, articles):
+
+    sent_count = 0
+
+    for article in articles:
+
+        if already_seen(article):
+            continue
+
+        if not is_relevant(article):
+            continue
+
+        message = format_message(ticker, article)
+
+        send_telegram_message(message)
+
+        sent_count += 1
+
+        time.sleep(1)
+
+    return sent_count
+
+# =========================================================
 # MAIN BOT LOOP
-# -----------------------------
+# =========================================================
+
 def run_bot():
 
     print("Bot running...")
@@ -231,36 +447,61 @@ def run_bot():
     now = datetime.utcnow()
     hour = now.hour
 
-    # 🌅 PREMARKET (UTC 13–14)
+    # =====================================================
+    # PREMARKET REPORT
+    # =====================================================
+
     if hour == 13 or hour == 14:
 
         send_market_report("PREMARKET")
         return
 
-    # 🌙 AFTER CLOSE (UTC 20–21)
+    # =====================================================
+    # AFTER CLOSE REPORT
+    # =====================================================
+
     elif hour == 20 or hour == 21:
 
         send_market_report("AFTER CLOSE")
         return
 
-    # 📰 NEWS SCANNING (all other times)
+    # =====================================================
+    # GENERAL MACRO NEWS
+    # =====================================================
+
+    print("Scanning general macro news...")
+
+    general_news = fetch_general_news()
+
+    macro_sent = process_articles("MACRO", general_news)
+
+    print(f"Macro articles sent: {macro_sent}")
+
+    # =====================================================
+    # TICKER NEWS
+    # =====================================================
+
+    total_sent = 0
+
     for ticker in TICKERS:
 
-        news = fetch_news(ticker)
+        news = fetch_company_news(ticker)
 
         print(f"{ticker}: {len(news)} articles fetched")
 
-        for article in news:
+        sent = process_articles(ticker, news)
 
-            if is_relevant(article):
+        total_sent += sent
 
-                message = format_message(ticker, article)
-                send_telegram_message(message)
+        time.sleep(1)
+
+    print(f"Ticker articles sent: {total_sent}")
 
     print("Run complete.")
 
-# -----------------------------
+# =========================================================
 # START
-# -----------------------------
+# =========================================================
+
 if __name__ == "__main__":
     run_bot()
