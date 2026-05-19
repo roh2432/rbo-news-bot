@@ -162,7 +162,7 @@ def send_telegram_message(message):
     }
 
     try:
-        requests.post(url, data=payload, timeout=10)
+        requests.post(url, data=payload, out=10)
 
     except Exception as e:
         print(f"Telegram error: {e}")
@@ -173,10 +173,10 @@ def send_telegram_message(message):
 
 def fetch_company_news(ticker):
 
-    now = int(time.time())
-    from_time = now - (60 * 150)
+    now = int(.())
+    from_time = now - (60 * 60 * 12)
 
-    from_date = time.strftime('%Y-%m-%d', time.gmtime(from_time))
+    from_date = .strftime('%Y-%m-%d', time.gmtime(from_time))
     to_date = time.strftime('%Y-%m-%d', time.gmtime(now))
 
     url = (
