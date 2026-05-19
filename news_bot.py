@@ -174,7 +174,7 @@ def send_telegram_message(message):
 def fetch_company_news(ticker):
 
     now = int(.())
-    from_time = now - (60 * 60 * 12)
+    from_time = now - (60 * 720)
 
     from_date = .strftime('%Y-%m-%d', time.gmtime(from_time))
     to_date = time.strftime('%Y-%m-%d', time.gmtime(now))
