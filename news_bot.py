@@ -243,75 +243,6 @@ def fetch_general_news():
         return []
 
 # =========================================================
-# FETCH PRICE
-# =========================================================
-
-# def fetch_price(ticker):
-
- #   url = (
- #       f"https://finnhub.io/api/v1/quote"
- #       f"?symbol={ticker}"
- #       f"&token={FINNHUB_API_KEY}"
- #   )
-
-  #  try:
-
-  #      r = requests.get(url, timeout=10)
-
-  #      if r.status_code != 200:
-   #         return None
-
-  #      data = r.json()
-
- #       return {
-#            "current": data.get("c"),
- #           "previous_close": data.get("pc")
- #       }
-
-  #  except Exception as e:
-
-   #     print(f"Price fetch error ({ticker}): {e}")
-    #    return None
-
-# =========================================================
-# MARKET REPORT
-# =========================================================
-
-def send_market_report(report_type):
-
-    message = f"📊 {report_type} MARKET REPORT\n\n"
-
-    for ticker in TICKERS:
-
-        price_data = fetch_price(ticker)
-
-        if not price_data:
-            continue
-
-        current = price_data["current"]
-        previous = price_data["previous_close"]
-
-        if not current or not previous:
-            continue
-
-        change_pct = ((current - previous) / previous) * 100
-
-        if change_pct > 0:
-            emoji = "📈"
-        elif change_pct < 0:
-            emoji = "📉"
-        else:
-            emoji = "⚪️"
-
-        message += (
-            f"{emoji} {ticker}\n"
-            f"Price: ${current:.2f}\n"
-            f"Change: {change_pct:.2f}%\n\n"
-        )
-
-    send_telegram_message(message)
-
-# =========================================================
 # SENTIMENT
 # =========================================================
 
@@ -441,27 +372,6 @@ def process_articles(ticker, articles):
 def run_bot():
 
     print("Bot running...")
-
-    now = datetime.utcnow()
-    hour = now.hour
-
-    # =====================================================
-    # PREMARKET REPORT
-    # =====================================================
-
-    if hour == 13 or hour == 14:
-
-        send_market_report("PREMARKET")
-        return
-
-    # =====================================================
-    # AFTER CLOSE REPORT
-    # =====================================================
-
-    elif hour == 20 or hour == 21:
-
-        send_market_report("AFTER CLOSE")
-        return
 
     # =====================================================
     # GENERAL MACRO NEWS
