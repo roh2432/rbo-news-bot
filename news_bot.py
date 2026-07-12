@@ -246,32 +246,32 @@ def fetch_general_news():
 # FETCH PRICE
 # =========================================================
 
-def fetch_price(ticker):
+# def fetch_price(ticker):
 
-    url = (
-        f"https://finnhub.io/api/v1/quote"
-        f"?symbol={ticker}"
-        f"&token={FINNHUB_API_KEY}"
-    )
+ #   url = (
+ #       f"https://finnhub.io/api/v1/quote"
+ #       f"?symbol={ticker}"
+ #       f"&token={FINNHUB_API_KEY}"
+ #   )
 
-    try:
+  #  try:
 
-        r = requests.get(url, timeout=10)
+  #      r = requests.get(url, timeout=10)
 
-        if r.status_code != 200:
+  #      if r.status_code != 200:
             return None
 
-        data = r.json()
+  #      data = r.json()
 
-        return {
-            "current": data.get("c"),
-            "previous_close": data.get("pc")
-        }
+ #       return {
+#            "current": data.get("c"),
+ #           "previous_close": data.get("pc")
+ #       }
 
-    except Exception as e:
+  #  except Exception as e:
 
-        print(f"Price fetch error ({ticker}): {e}")
-        return None
+   #     print(f"Price fetch error ({ticker}): {e}")
+    #    return None
 
 # =========================================================
 # MARKET REPORT
